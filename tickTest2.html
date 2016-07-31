@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no" name="viewport"/>
+<body>
+<script src="/javascripts/d3.v3.min.js"></script>
+<script src="/javascripts/techan.mod.ver2.js"></script>
+<script src="/javascripts/jquery.min.js"></script>
+<link href="/stylesheets/betting.css" rel="stylesheet">
+<!--
+<table id="realtimeBidAsk">
+    <tr>
+        <td id="Bid">载入中...</td>
+        <td id="Ask">载入中...</td>
+    </tr>
+</table>
+-->
+<div id="candleStick">
+    <div id="candleStickYaxis">
+        <script>
+            var socket = io();
+            var screenWidth = window.screen.availWidth;
+            var screenHeight = window.screen.availHeight;
+            var margin = {top: 20, right: 20, bottom: 30, left: 50};
+            //width = 960 - margin.left - margin.right,
+            //var height = 200 - margin.left - margin.right;
+            var height = 200-10;
+            var shouldScroll = true;
+            var chartScrollLeft = 0;
+            var tickToShow = 60;
+            var blankSpaceWidth = 0;
+            var tickWidth = screenWidth / tickToShow;
+            var width;
+            var parseDate = d3.time.format("%Y-%m-%dT%H:%M:%SZ").parse;
+            var x;
+            var y;
+            var yVolume;
+            var candlestick;
+            var sma0;
+            var sma0Calculator;
+            var sma1;
+            var sma1Calculator;
+            var volume;
+            var xAxis;
+            var yAxis;
+            var volumeAxis;
+            var timeAnnotation;
+            var candlestickAnnotation;
+            var volumeAnnotation;
+            var crosshair;
+            var svg;
+            var coordsText;
+            var svgYaxis;
+            var defs;
+            var candlestickSelection;
+            var cross;
+            var xline;
+            var yline;
+            var crossArea;
+            var data, feed, dataLoaded,candleSVG;
+            var initTimer, constMinTimer,constSecTimer, timeDiff;
+            var touchPosition,touchOffset,dataStartPosition;
+            var shouldUpdateMin = 0;
+
+            function init(l){
+
+                width = Math.min(screenWidth / tickToShow * l, screenWidth);
+                x = techan.scale.financetime()
+                        .range([0, width]);
+
+                y = d3.scale.linear()
+                        .range([height, 0]);
+
+                yVolume = d3.scale.linear()
+                        .range([y(0), y(0.2)]);
+
+                candlestick = techan.plot.candlestick()
+                        .xScale(x)
+                        .yScale(y);
+
+                sma0 = techan.plot.sma()
+                        .xScale(x)
+                        .yScale(y);
+
+                sma0Calculator = techan.indicator.sma()
+                        .period(10);
+
+                sma1 = techan.plot.sma()
+                        .xScale(x)
+                        .yScale(y);
+
+                sma1Calculator = techan.indicator.sma()
+                        .period(20);
+
+                volume = techan.plot.volume()
+                        .xScale(x)
+                        .yScale(yVolume);
+                //.accessor(candlestick.accessor())   // Set the accessor to a candlestick accessor so we get highlighted bars
+
+                xAxis = d3.svg.axis()
+                        .scale(x)
+                        .orient("bottom");
+
+                yAxis = d3.svg.axis()
+                        .scale(y)
+                        .orient("right");
+
+                volumeAxis = d3.svg.axis()
+                        .scale(yVolume)
+                        .orient("right")
+                        .ticks(3)
+                        .tickFormat(d3.format(",.3s"));
+
+                timeAnnotation = techan.plot.axisannotation()
+                        .axis(xAxis)
+                        .format(d3.time.format('%H:%M'))
+                        .width(65)
+                        .translate([0, height]);
+
+                candlestickAnnotation = techan.plot.axisannotation()
+                        .axis(yAxis)
+                        .format(d3.format(',.2fs'));
+
+                volumeAnnotation = techan.plot.axisannotation()
+                        .axis(volumeAxis)
+                        .width(35);
+
+                crosshair = techan.plot.crosshair()
+                        .xScale(x)
+                        .yScale(y)
+                        .xAnnotation(timeAnnotation)
+                        .yAnnotation(candlestickAnnotation);
+
+                svg = d3.select("#candleStick").append("svg")
+                        .attr("id","candleChart")
+                        .attr("width", width)
+                        .attr("height", height+20);
+
+                coordsText = svg.append('text')
+                        .style("text-anchor", "end")
+                        .attr("class", "coords")
+                        .attr("x", width - 5)
+                        .attr("y", 15);
+
+                svgYaxis = d3.select("#candleStickYaxis").append("svg")
+                        .attr("height",height)
+                        .attr("width",screenWidth);
+                defs = svg.append("defs");
+
+                defs.append("clipPath")
+                        .attr("id", "candlestickClip")
+                        .append("rect")
+                        .attr("x", 0)
+                        .attr("y", 0)
+                        .attr("width", width)
+                        .attr("height", height);
+
+                svg = svg.append("g")
+                        .attr("transform", "translate(0,0)");
+
+                candlestickSelection = svg.append("g")
+                        .attr("class", "candlestick")
+                        .attr("transform", "translate(0,0)");
+
+                candlestickSelection.append("g")
+                        .attr("class", "volume")
+                        .attr("clip-path", "url(#candlestickClip)");
+
+                candlestickSelection.append("g")
+                        .attr("class", "candlestick")
+                        .attr("clip-path", "url(#candlestickClip)");
+
+                svgYaxis.append("g")
+                        .attr("class", "candlestick");
+
+                candlestickSelection.append("g")
+                        .attr("class", "indicator sma ma-0")
+                        .attr("clip-path", "url(#candlestickClip)");
+
+                candlestickSelection.append("g")
+                        .attr("class", "indicator sma ma-1")
+                        .attr("clip-path", "url(#candlestickClip)");
+
+                svg.append("g")
+                        .attr("class", "x axis")
+                        .attr("transform", "translate(0," + height + ")");
+
+                svgYaxis.append("g")
+                        .attr("class", "y axis");
+
+                cross = svgYaxis.append("g")
+                        .attr("class","cross");
+
+                xline = cross.append("line")
+                        .attr("x1",screenWidth-27).attr("y1",height-15).attr("x2",screenWidth-3).attr("y2",height-15);
+                yline = cross.append("line")
+                        .attr("x1",screenWidth-15).attr("y1",height-27).attr("x2",screenWidth-15).attr("y2",height-3);
+                crossArea = cross.append("rect")
+                        .on("touchstart",crossShouldAppear)
+                        .attr("x",screenWidth-30).attr("y",height-30).attr("width",30).attr("height",30).attr("class","crossarea");
+
+                svg.append('g')
+                        .attr("class", "crosshair candlestick")
+            }
+
+            function update() {
+                //width = screenWidth / tickToShow * l;
+                //x = techan.scale.financetime()
+                //.range([0, width]);
+                x;
+                candlestick.xScale(x).yScale(y);
+
+                //xAxis = d3.svg.axis()
+                //.scale(x)
+                //.orient("bottom");
+                xAxis;
+
+                $('#candleChart')
+                        .attr("id","candleChart")
+                        .attr("width", width+blankSpaceWidth)
+                        .attr("height", height+20);
+
+                $('#candleChart text')
+                        .attr("class", "coords")
+                        .attr("x", width - 5)
+                        .attr("y", 15);
+
+                $('#candleChart rect')
+                        .attr("x", 0)
+                        .attr("y", 0)
+                        .attr("width", width+blankSpaceWidth)
+                        .attr("height", height);
+
+                $("#candleChart .crosshair.candlestick rect")
+                        .attr("width",width);
+            }
+
+            d3.json("LoadCPData/m1.php?category=3", function(error, response) {
+                if(response) {
+                    timeDiff = parseInt(response[0].timeDiff);
+                    loadInitialData();
+                }else{
+                    alert("读取数据出错，请刷新页面");
+                }
+            });
+
+            function loadInitialData() {
+                d3.json("LoadCPData/m1.php?category=1", function(error, response) {
+                    if(response){
+                        dataLoaded = response.length;
+                        //init(response.length);
+                        init(tickToShow);
+                        var accessor = candlestick.accessor();
+                        feed = response.map(function (d) {
+                            return {
+                                date: parseDate(d.Datetime),
+                                open: +d.Open,
+                                high: +d.High,
+                                low: +d.Low,
+                                close: +d.Close,
+                                volume: +d.Volume
+                            };
+                        }).sort(function (a, b) { return d3.ascending(accessor.d(a), accessor.d(b)); });
+                        //data = feed.splice(0, 163);
+                        candleSVG = feed;
+                        touchOffset = 0;
+                        dataStartPosition = feed.length - tickToShow;
+                        data = feed.slice(dataStartPosition, dataStartPosition + tickToShow);
+                        //candleSVG = data.slice(data.length - 1 - tickToShow, data.length - 1);
+                        svg.select("g.candlestick").datum(data);
+                        svgYaxis.select("g.candlestick").datum(data);
+                        svg.select("g.sma.ma-0").datum(sma0Calculator(data));
+                        svg.select("g.sma.ma-1").datum(sma1Calculator(data));
+                        svg.select("g.volume").datum(data);
+                        chartScrollLeft = width - screenWidth;
+                        //$('#candleStick').scrollLeft(chartScrollLeft);
+                        redraw();
+                        var now = new Date();
+                        var startInterval = now.getSeconds() + timeDiff;
+                        constSecUpdate(startInterval);
+                    }
+                    else{
+                        alert("数据加载错误");
+                    }
+                });
+            }
+
+
+            function constMinUpdate(counter) {
+                var last = dataLoaded;
+                counter += 1;
+                setTimeout(constSecUpdate(counter),1000);
+                d3.json("LoadCPData/m1.php?category=2&last="+last, function (error, response) {
+                    if (response.length == 2) {
+                        feed = response.map(function (d) {
+                            return {
+                                date: parseDate(d.Datetime),
+                                open: +d.Open,
+                                high: +d.High,
+                                low: +d.Low,
+                                close: +d.Close,
+                                volume: +d.Volume
+                            };
+                        });
+                        candleSVG[dataLoaded-1] = feed[0];
+                        candleSVG.push(feed[1]);
+                        //update(dataLoaded);
+                        //currentPos = $("#candleStick").scrollLeft();
+                        //$('#candleStick').scrollLeft(currentPos + tickWidth);
+                        constredraw();
+                        shouldUpdateMin = 0;
+                        dataLoaded += 1;
+                    }
+                    else {
+                        constMinUpdate(counter);
+                    }
+                });
+            }
+
+            function constSecUpdate(counter) {
+                var secTimer = counter % 60;
+                if(secTimer != 0) {
+                    d3.json("LoadCPData/sec.php", function(error,response) {
+                        if(response) {
+                            var updatedLast = response.map(function(d) {
+                                return {
+                                    date: parseDate(d.Datetime),
+                                    open: +d.Open,
+                                    high: +d.High,
+                                    low: +d.Low,
+                                    close: +d.Close,
+                                    volume: +d.Volume
+                                };
+                            });
+                            candleSVG[candleSVG.length - 1] = updatedLast[0];
+                            if(dataStartPosition + tickToShow >= dataLoaded - 1){
+                                secConstredraw();
+                            }
+                            counter += 1;
+                            constSecTimer = setTimeout(constSecUpdate(counter),1000);
+                        }
+                        else {
+                            constSecUpdate(counter);
+                        }
+                    });
+                }
+                else{
+                    constMinUpdate(counter);
+                }
+
+            }
+
+            function refreshIndicator(selection, indicator, data) {
+                var datum = selection.datum();
+                // Some trickery to remove old and insert new without changing array reference,
+                // so no need to update __data__ in the DOM
+                datum.splice.apply(datum, [0, datum.length].concat(data));
+                selection.call(indicator);
+            }
+
+            function refreshCandlestick(selection, indicator, data) {
+                var datum = selection.datum();
+                // Some trickery to remove old and insert new without changing array reference,
+                // so no need to update __data__ in the DOM
+                datum.splice.apply(datum, [0, datum.length].concat(data));
+                selection.call(indicator);
+            }
+
+            function crossShouldAppear(event) {
+                svgYaxis.attr("width",35);
+                chartScrollLeft = $("#candleStick").scrollLeft();
+                var lineXlocation = screenWidth/2+chartScrollLeft;
+                svg.select('path.horizontal.wire').attr("d","M 0 95 L "+width+" 95");
+                svg.select('path.vertical.wire').attr("d","M "+lineXlocation+" 0 L "+lineXlocation+" 190");
+                svg.select('g.x.axis').call(xAxis);
+                svgYaxis.select('g.y.axis').call(yAxis);
+                svg.select("g.crosshair.candlestick").call(crosshair);
+                svg.select('g.data.top').style("display","inline");
+                shouldScroll = false;
+            }
+
+            function constredraw() {
+                var accessor = candlestick.accessor();
+                x.domain(data.map(accessor.d));
+                dataStartPosition = dataStartPosition + 1;
+                data = candleSVG.slice(dataStartPosition, dataStartPosition + tickToShow);
+                x.zoomable().domain([0, data.length]);
+                y.domain(techan.scale.plot.ohlc(data).domain());
+                yVolume.domain(techan.scale.plot.volume(data).domain());
+                svg.select('g.x.axis').call(xAxis);
+                svgYaxis.select('g.y.axis').call(yAxis);
+                refreshCandlestick(svg.select('g.candlestick'), candlestick, data);
+                refreshIndicator(svg.select("g.sma.ma-0"), sma0, sma0Calculator(data));
+                refreshIndicator(svg.select("g.sma.ma-1"), sma1, sma1Calculator(data));
+                svg.select("g.volume").call(volume);
+                svg.select("g.crosshair.candlestick").call(crosshair);
+            }
+
+            function secConstredraw() {
+                var accessor = candlestick.accessor();
+                x.domain(data.map(accessor.d));
+                data[data.length - 1] = candleSVG[candleSVG.length - 1];
+                x.zoomable().domain([0, data.length]);
+                y.domain(techan.scale.plot.ohlc(data).domain());
+                yVolume.domain(techan.scale.plot.volume(data).domain());
+                svg.select('g.x.axis').call(xAxis);
+                svgYaxis.select('g.y.axis').call(yAxis);
+                refreshCandlestick(svg.select('g.candlestick'), candlestick, data);
+                refreshIndicator(svg.select("g.sma.ma-0"), sma0, sma0Calculator(data));
+                refreshIndicator(svg.select("g.sma.ma-1"), sma1, sma1Calculator(data));
+                svg.select("g.volume").call(volume);
+                svg.select("g.crosshair.candlestick").call(crosshair);
+            }
+
+            function redraw() {
+                var accessor = candlestick.accessor();
+                x.domain(data.map(accessor.d));
+                var offsetShift = Math.round(touchOffset / tickWidth);
+                dataStartPosition = dataStartPosition + offsetShift;
+                dataStartPosition = dataStartPosition < 0 ? 0 : dataStartPosition;
+                dataStartPosition = dataStartPosition > candleSVG.length-tickToShow ? candleSVG.length-tickToShow : dataStartPosition;
+                data = candleSVG.slice(dataStartPosition, dataStartPosition + tickToShow);
+                //var startPos = chartScrollLeft * tickToShow / screenWidth;
+                //candleSVG = data.splice(startPos,startPos+tickToShow);
+                x.zoomable().domain([0, data.length]);
+                //y.domain(techan.scale.plot.ohlc(data.slice(startPos, startPos+tickToShow)).domain());
+                //yVolume.domain(techan.scale.plot.volume(data.slice(startPos, startPos+tickToShow)).domain());
+                y.domain(techan.scale.plot.ohlc(data).domain());
+                yVolume.domain(techan.scale.plot.volume(data).domain());
+                svg.select('g.x.axis').call(xAxis);
+                svgYaxis.select('g.y.axis').call(yAxis);
+                refreshCandlestick(svg.select('g.candlestick'), candlestick, data);
+                //svg.select("g.candlestick").call(candlestick);
+                refreshIndicator(svg.select("g.sma.ma-0"), sma0, sma0Calculator(data));
+                refreshIndicator(svg.select("g.sma.ma-1"), sma1, sma1Calculator(data));
+                svg.select("g.volume").call(volume);
+                svg.select("g.crosshair.candlestick").call(crosshair);
+            }
+
+
+        </script>
+
+        <script>
+            $("#candleStick").on('touchstart', 'svg', crosshairWillMove);
+            $("#candleStick").on('touchmove', 'svg', chartShouldRedraw);
+            $("#candleStick").on('touchend', 'svg', crosshairDidMove);
+            $(window).on('orientationchange', rotate);
+            var timeout;
+            var isLongPress = 0;
+            var num=0;
+
+            function crosshairWillMove(event) {
+                if(!shouldScroll) {
+                    event.preventDefault();
+                }
+                if(shouldScroll) {
+                    touchPosition = event.originalEvent.touches[0].clientX;
+                }
+            }
+
+            function chartShouldRedraw(event) {
+                if(!shouldScroll) {
+                    event.preventDefault();
+                }
+                if(shouldScroll) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    chartScrollLeft = $("#candleStick").scrollLeft();
+                    touchOffset = touchPosition - event.originalEvent.touches[0].clientX;
+                    touchPosition = event.originalEvent.touches[0].clientX;
+                    redraw();
+                }
+            }
+
+            function crosshairDidMove(event) {
+                chartScrollLeft = $("#candleStick").scrollLeft();
+                redraw();
+            }
+
+            function rotate(event) {
+                var screenWidth = window.screen.availWidth;
+                svgYaxis.attr("width",screenWidth);
+                xline.attr("x1",screenWidth-27).attr("x2",screenWidth-3);
+                yline.attr("x1",screenWidth-15).attr("x2",screenWidth-15);
+                crossArea.attr("x",screenWidth-30);
+            }
+        </script>
+
+    </div>
+</div>
+</body>
