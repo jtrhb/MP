@@ -3,18 +3,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no" name="viewport"/>
 <body>
+<script src="/socket.io/socket.io.js"></script>
 <script src="/javascripts/d3.v3.min.js"></script>
 <script src="/javascripts/techan.mod.ver2.js"></script>
 <script src="/javascripts/jquery.min.js"></script>
 <link href="/stylesheets/betting.css" rel="stylesheet">
-<!--
-<table id="realtimeBidAsk">
-    <tr>
-        <td id="Bid">载入中...</td>
-        <td id="Ask">载入中...</td>
-    </tr>
-</table>
--->
 <div id="candleStick">
     <div id="candleStickYaxis">
         <script>
@@ -60,7 +53,7 @@
             var data, feed, dataLoaded,candleSVG;
             var initTimer, constMinTimer,constSecTimer, timeDiff;
             var touchPosition,touchOffset,dataStartPosition;
-            var shouldUpdateMin = 0;
+            var shouldUpdateSec = 1;
 
             function init(l){
 
@@ -234,7 +227,7 @@
                 $("#candleChart .crosshair.candlestick rect")
                         .attr("width",width);
             }
-
+/*
             d3.json("LoadCPData/m1.php?category=3", function(error, response) {
                 if(response) {
                     timeDiff = parseInt(response[0].timeDiff);
@@ -243,7 +236,86 @@
                     alert("读取数据出错，请刷新页面");
                 }
             });
+*/
+            socket.on('init chart update', function(msg) {
+                var response = JSON.parse(msg);
+                dataLoaded = response.length;
+                init(tickToShow);
+                var accessor = candlestick.accessor();
+                        feed = response.map(function (d) {
+                            return {
+                                date: parseDate(d.Datetime),
+                                open: +d.Open,
+                                high: +d.High,
+                                low: +d.Low,
+                                close: +d.Close,
+                                volume: +d.Volume
+                            };
+                        }).sort(function (a, b) { return d3.ascending(accessor.d(a), accessor.d(b)); });
+                        //data = feed.splice(0, 163);
+                        candleSVG = feed;
+                        touchOffset = 0;
+                        dataStartPosition = feed.length - tickToShow;
+                        data = feed.slice(dataStartPosition, dataStartPosition + tickToShow + 1);
+                        //candleSVG = data.slice(data.length - 1 - tickToShow, data.length - 1);
+                        svg.select("g.candlestick").datum(data);
+                        svgYaxis.select("g.candlestick").datum(data);
+                        svg.select("g.sma.ma-0").datum(sma0Calculator(data));
+                        svg.select("g.sma.ma-1").datum(sma1Calculator(data));
+                        svg.select("g.volume").datum(data);
+                        chartScrollLeft = width - screenWidth;
+                        //$('#candleStick').scrollLeft(chartScrollLeft);
+                        redraw();
+            });
 
+            socket.on('sec chart update', function(msg) {
+                var response = JSON.parse(msg);
+                var updatedLast = response.map(function(d) {
+                                return {
+                                    date: parseDate(d.Datetime),
+                                    open: +d.Open,
+                                    high: +d.High,
+                                    low: +d.Low,
+                                    close: +d.Close,
+                                    volume: +d.Volume
+                                };
+                            });
+                candleSVG[candleSVG.length - 1] = updatedLast[0];
+                if(dataStartPosition + tickToShow >= dataLoaded - 1){
+                   secConstredraw();
+                }
+            });
+
+            socket.on('min chart update', function(msg) {
+                //shouldUpdateSec = 0;
+                var min = JSON.parse(msg['min']);
+                var sec = JSON.parse(msg['sec']);
+                var minUpdate = min.map(function(d) {
+                                return {
+                                    date: parseDate(d.Datetime),
+                                    open: +d.Open,
+                                    high: +d.High,
+                                    low: +d.Low,
+                                    close: +d.Close,
+                                    volume: +d.Volume
+                                };
+                            });
+               var secUpdate = sec.map(function(d) {
+                                return {
+                                    date: parseDate(d.Datetime),
+                                    open: +d.Open,
+                                    high: +d.High,
+                                    low: +d.Low,
+                                    close: +d.Close,
+                                    volume: +d.Volume
+                                };
+                            });
+              candleSVG[dataLoaded-1] = minUpdate[0];
+              candleSVG.push(secUpdate[0]);
+              constredraw();
+              dataLoaded += 1;
+            })
+/*
             function loadInitialData() {
                 d3.json("LoadCPData/m1.php?category=1", function(error, response) {
                     if(response){
@@ -349,7 +421,7 @@
                 }
 
             }
-
+*/
             function refreshIndicator(selection, indicator, data) {
                 var datum = selection.datum();
                 // Some trickery to remove old and insert new without changing array reference,
@@ -394,6 +466,7 @@
                 refreshIndicator(svg.select("g.sma.ma-1"), sma1, sma1Calculator(data));
                 svg.select("g.volume").call(volume);
                 svg.select("g.crosshair.candlestick").call(crosshair);
+                shouldUpdateSec = 1;
             }
 
             function secConstredraw() {
@@ -488,4 +561,10 @@
 
     </div>
 </div>
+<table id="realtimeBidAsk">
+    <tr>
+        <td id="Bid">载入中...</td>
+        <td id="Ask">载入中...</td>
+    </tr>
+</table>
 </body>
