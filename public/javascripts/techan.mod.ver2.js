@@ -1319,6 +1319,8 @@
                             if(!shouldScroll){
                                 var f = c(this),  g = m.xScale.invert(f[0]), i = m.yScale.invert(f[1]);
                                 j(a.datum(g), b.datum(i), d.each(h.annotation.update(o, f[0])), e.each(h.annotation.update(p, f[1]))), n.move([g, i])
+                                var index = Math.round(f[0]*tickToShow/screenWidth);
+                                updateOHLC(index);
                             }
                         }
                     }
@@ -1332,6 +1334,14 @@
                                 n.enter();
                             }
                         }
+                    }
+
+                    function updateOHLC(index) {
+                        $("#open").text(String(data[index]['open']));
+                        $("#high").text(String(data[index]['high']));
+                        $("#low").text(String(data[index]['low']));
+                        $("#close").text(String(data[index]['close']));
+                        $("#volume").text(String(data[index]['volume']));
                     }
 
                     function j(a, b, c, d) {

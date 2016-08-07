@@ -2,12 +2,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no" name="viewport"/>
+<!--
+<meta name="apple-touch-fullscreen" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="format-detection" content="telephone=no">
+<meta name="x5-fullscreen" content="true">
+-->
 <body>
+<link href="/stylesheets/bootstrap.min.css" rel="stylesheet">
 <script src="/socket.io/socket.io.js"></script>
 <script src="/javascripts/d3.v3.min.js"></script>
 <script src="/javascripts/techan.mod.ver2.js"></script>
 <script src="/javascripts/jquery.min.js"></script>
+<script src="/javascripts/bootstrap.min.js"></script>
 <link href="/stylesheets/betting.css" rel="stylesheet">
+<div id="container">
 <div id="candleStick">
     <div id="candleStickYaxis">
         <script>
@@ -53,7 +63,9 @@
             var data, feed, dataLoaded,candleSVG;
             var initTimer, constMinTimer,constSecTimer, timeDiff;
             var touchPosition,touchOffset,dataStartPosition;
-            var shouldUpdateSec = 1;
+            var shouldUpdateSec = 1, BID = 0, ASK = 0;
+            var open, high, low, close, currencypair;
+            var longVote=10,shortVote=10,lastVoted = 2;
 
             function init(l){
 
@@ -127,7 +139,8 @@
                 svg = d3.select("#candleStick").append("svg")
                         .attr("id","candleChart")
                         .attr("width", width)
-                        .attr("height", height+20);
+                        .attr("height", height+20)
+                        .attr("transform","translate(0,20)");
 
                 coordsText = svg.append('text')
                         .style("text-anchor", "end")
@@ -227,16 +240,7 @@
                 $("#candleChart .crosshair.candlestick rect")
                         .attr("width",width);
             }
-/*
-            d3.json("LoadCPData/m1.php?category=3", function(error, response) {
-                if(response) {
-                    timeDiff = parseInt(response[0].timeDiff);
-                    loadInitialData();
-                }else{
-                    alert("读取数据出错，请刷新页面");
-                }
-            });
-*/
+
             socket.on('init chart update', function(msg) {
                 var response = JSON.parse(msg);
                 dataLoaded = response.length;
@@ -281,6 +285,7 @@
                                 };
                             });
                 candleSVG[candleSVG.length - 1] = updatedLast[0];
+                //updateCPInfo(updatedLast[0]);
                 if(dataStartPosition + tickToShow >= dataLoaded - 1){
                    secConstredraw();
                 }
@@ -315,113 +320,101 @@
               constredraw();
               dataLoaded += 1;
             })
-/*
-            function loadInitialData() {
-                d3.json("LoadCPData/m1.php?category=1", function(error, response) {
-                    if(response){
-                        dataLoaded = response.length;
-                        //init(response.length);
-                        init(tickToShow);
-                        var accessor = candlestick.accessor();
-                        feed = response.map(function (d) {
-                            return {
-                                date: parseDate(d.Datetime),
-                                open: +d.Open,
-                                high: +d.High,
-                                low: +d.Low,
-                                close: +d.Close,
-                                volume: +d.Volume
-                            };
-                        }).sort(function (a, b) { return d3.ascending(accessor.d(a), accessor.d(b)); });
-                        //data = feed.splice(0, 163);
-                        candleSVG = feed;
-                        touchOffset = 0;
-                        dataStartPosition = feed.length - tickToShow;
-                        data = feed.slice(dataStartPosition, dataStartPosition + tickToShow);
-                        //candleSVG = data.slice(data.length - 1 - tickToShow, data.length - 1);
-                        svg.select("g.candlestick").datum(data);
-                        svgYaxis.select("g.candlestick").datum(data);
-                        svg.select("g.sma.ma-0").datum(sma0Calculator(data));
-                        svg.select("g.sma.ma-1").datum(sma1Calculator(data));
-                        svg.select("g.volume").datum(data);
-                        chartScrollLeft = width - screenWidth;
-                        //$('#candleStick').scrollLeft(chartScrollLeft);
-                        redraw();
-                        var now = new Date();
-                        var startInterval = now.getSeconds() + timeDiff;
-                        constSecUpdate(startInterval);
-                    }
-                    else{
-                        alert("数据加载错误");
-                    }
-                });
-            }
 
-
-            function constMinUpdate(counter) {
-                var last = dataLoaded;
-                counter += 1;
-                setTimeout(constSecUpdate(counter),1000);
-                d3.json("LoadCPData/m1.php?category=2&last="+last, function (error, response) {
-                    if (response.length == 2) {
-                        feed = response.map(function (d) {
-                            return {
-                                date: parseDate(d.Datetime),
-                                open: +d.Open,
-                                high: +d.High,
-                                low: +d.Low,
-                                close: +d.Close,
-                                volume: +d.Volume
-                            };
-                        });
-                        candleSVG[dataLoaded-1] = feed[0];
-                        candleSVG.push(feed[1]);
-                        //update(dataLoaded);
-                        //currentPos = $("#candleStick").scrollLeft();
-                        //$('#candleStick').scrollLeft(currentPos + tickWidth);
-                        constredraw();
-                        shouldUpdateMin = 0;
-                        dataLoaded += 1;
+            socket.on('bid ask update', function(msg) {
+                var rtData = JSON.parse(msg);
+                var bid = rtData['Bid'];
+                var ask = rtData['Ask'];
+                var bidbgc, askbgc;
+                if(Number(bid) > BID) {
+                    bidbgc = "red";
+                } else {
+                    if(Number(bid) < BID) {
+                        bidbgc = "green";
+                    } else {
+                        bidbgc = "deepskyblue";
                     }
-                    else {
-                        constMinUpdate(counter);
-                    }
-                });
-            }
-
-            function constSecUpdate(counter) {
-                var secTimer = counter % 60;
-                if(secTimer != 0) {
-                    d3.json("LoadCPData/sec.php", function(error,response) {
-                        if(response) {
-                            var updatedLast = response.map(function(d) {
-                                return {
-                                    date: parseDate(d.Datetime),
-                                    open: +d.Open,
-                                    high: +d.High,
-                                    low: +d.Low,
-                                    close: +d.Close,
-                                    volume: +d.Volume
-                                };
-                            });
-                            candleSVG[candleSVG.length - 1] = updatedLast[0];
-                            if(dataStartPosition + tickToShow >= dataLoaded - 1){
-                                secConstredraw();
-                            }
-                            counter += 1;
-                            constSecTimer = setTimeout(constSecUpdate(counter),1000);
-                        }
-                        else {
-                            constSecUpdate(counter);
-                        }
-                    });
                 }
-                else{
-                    constMinUpdate(counter);
+                if(Number(ask) > ASK) {
+                    askbgc = "red";
+                } else {
+                    if(Number(ask) < ASK) {
+                        askbgc = "green";
+                    } else {
+                        askbgc = "deepskyblue";
+                    }
                 }
+                $("#Bid").text(bid).css("background-color",bidbgc);
+                $("#Ask").text(ask).css("background-color",askbgc);
+                BID = Number(bid), ASK = Number(ask);
+            });
 
+            socket.on("update bar percentage", function(msg) {
+                longVote = Number(msg['long']);
+                shortVote = Number(msg['short']);
+                var longPercentage = (longVote / (longVote + shortVote)) * 100;
+                var shortPercentage = (shortVote / (shortVote + longVote)) * 100;
+                $("#longPart").css("width",longPercentage+"%").text(String(longVote));
+                $("#shortPart").css("width",shortPercentage+"%").text(String(shortVote));
+            })
+
+            socket.on("update long percentage", function(msg) {
+                $("#longButton").addClass("long");
+                longVote = Number(msg);
+                var longPercentage = (longVote / (longVote + shortVote)) * 100;
+                var shortPercentage = (shortVote / (shortVote + longVote)) * 100;
+                $("#longPart").css("width",longPercentage+"%").text(String(longVote));
+                $("#shortPart").css("width",shortPercentage+"%").text(String(shortVote));
+            })
+
+            socket.on("update short percentage", function(msg) {
+                $("#shortButton").addClass("short");
+                shortVote = Number(msg);
+                var longPercentage = (longVote / (longVote + shortVote)) * 100;
+                var shortPercentage = (shortVote / (shortVote + longVote)) * 100;
+                $("#longPart").css("width",longPercentage+"%").text(String(longVote));
+                $("#shortPart").css("width",shortPercentage+"%").text(String(shortVote));
+            })
+
+            socket.on('load comment', function(msg) {
+                msg['long'].map(function(val) {
+                    $("#longMessage").append($('<li>').text(val));
+                })
+                msg['neutral'].map(function(val) {
+                    $("#neutralMessage").append($('<li>').text(val));
+                })
+                msg['short'].map(function(val) {
+                    $("#shortMessage").append($('<li>').text(val));
+                })
+            })
+
+            socket.on("chat message", function(msg) {
+                var viewRange;
+                switch(msg['dir'])
+                {
+                    case 1:
+                      viewRange = "#longMessage";
+                      break;
+                    case 2:
+                      viewRange = "#neutralMessage";
+                      break;
+                    case 3:
+                      viewRange = "#shortMessage";
+                      break;
+                    default:
+                      viewRange = "#neutralMessage";
+                }
+                $(viewRange).append($('<li>').text(msg['msg']));
+            })
+
+            function updateCPInfo(cpinfo) {
+              $("#open").text(String(cpinfo['open']));
+              $("#high").text(String(cpinfo['high']));
+              $("#low").text(String(cpinfo['low']));
+              $("#close").text(String(cpinfo['close']));
+              $("#volume").text(String(cpinfo['volume']));
             }
-*/
+
             function refreshIndicator(selection, indicator, data) {
                 var datum = selection.datum();
                 // Some trickery to remove old and insert new without changing array reference,
@@ -567,4 +560,144 @@
         <td id="Ask">载入中...</td>
     </tr>
 </table>
+
+<div id="rbaHeader">
+    <span class="rbaHeaderCell">
+        卖出价
+    </span>
+    <span class="rbaHeaderCell">
+        买入价
+    </span>
+</div>
+
+<div id="cpInfo">
+    <span class="cpInfoContainer">
+        <span class="description">
+            图:
+        </span>
+        <span id="cp">
+            EURUSD
+        </span>
+    </span>
+    <span class="InfoContainer">
+        <span class="description">
+            开:
+        </span>
+        <span id="open">
+            
+        </span>
+    </span>
+    <span class="InfoContainer">
+        <span class="description">
+            高:
+        </span>
+        <span id="high">
+            
+        </span>
+    </span>
+    <span class="InfoContainer">
+        <span class="description">
+            低:
+        </span>
+        <span id="low">
+            
+        </span>
+    </span>
+    <span class="InfoContainer">
+        <span class="description">
+            收:
+        </span>
+        <span id="close">
+            
+        </span>
+    </span>
+    <span class="vlInfoContainer">
+        <span class="descriptionVL">
+            量:
+        </span>
+        <span id="volume">
+            
+        </span>
+    </span>
+</div>
+
+<div id="placeHolder"></div>
+
+<div id="voting">
+    <div class="button">
+        <input type="button" id="longButton" onclick="vote(this.id)">
+    </div>
+    <div class="progressBar">
+        <div id="barFull">
+            <div id="longPart">
+                
+            </div>
+            <div id="shortPart">
+                
+            </div>
+        </div>
+    </div>
+    <div class="button">
+        <input type="button" id="shortButton" onclick="vote(this.id)">
+    </div>
+</div>
+
+<ul class="nav nav-tabs" id="chatTab">
+   <li id="longTab"><a href="#longMsg" data-toggle="tab">龙霸</a></li>
+   <li class="active" id="neutralTab"><a href="#neutralMsg" data-toggle="tab">骑墙</a></li>
+   <li id="shortTab"><a href="#shortMsg" data-toggle="tab">瀑布</a></li>
+</ul>
+<div id="msgContainer" class="tab-content">
+    <div class="article-container tab-pane" id="longMsg">
+        <ul id="longMessage">
+        </ul>
+    </div>
+    <div class="article-container tab-pane active" id="neutralMsg">
+        <ul id="neutralMessage">
+        </ul>
+    </div>
+    <div class="article-container tab-pane" id="shortMsg">
+        <ul id="shortMessage">
+        </ul>
+    </div>
+</div>
+<form onsubmit="getComment" action="" id="input">
+      <input id="textInput" autocomplete="off" type="text" onkeydown="getComment(event)"/>
+      <input type="text" style="display:none;" name="avoid_enter_submit" />
+</form>
+<div id="anchor"></div>
+
+</div>
+<script>
+    function vote(id) {
+            if(id == "longButton") {
+                lastVoted = 1;
+                $("#longButton").addClass("long");
+                socket.emit("vote for", "long");
+            } else {
+                lastVoted = 3;
+                $("#shortButton").addClass("short");
+                socket.emit("vote for", "short");
+            }
+        }
+
+        $("#longButton").bind("webkitAnimationEnd", function() {
+            $("#longButton").removeClass("long");
+        });
+        $("#shortButton").bind("webkitAnimationEnd", function() {
+            $("#shortButton").removeClass("short");
+        });
+
+    function getComment(e) {
+      if(e.keyCode == 13){
+          socket.emit("chat message", {msg:$('#textInput').val(),dir:lastVoted});
+          $("#textInput").blur();
+          $('#textInput').val('');
+          $("body").trigger("click");
+        //alert($(this).focus());
+        //$("#search_btn").click();
+        }
+    }
+</script>
+
 </body>

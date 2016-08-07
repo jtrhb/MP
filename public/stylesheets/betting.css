@@ -1,5 +1,6 @@
 body {
     font: 10px sans-serif;
+    height:698px;
 }
 
 .axis path,
@@ -70,12 +71,85 @@ path.volume {
 .crosshair .axisannotation path {
     fill: #DDDDDD;
 }
-#candleStick{width:100%;height:250px;position:fixed;overflow-x:auto;margin: 0px 0px 0px 0px;left:0px;top:0px;}
-#candleStickYaxis{width:35px;height:250px;position:fixed;float:left;}
+@keyframes longVoted {
+    from{border:2px solid red;} 
+    to{border:0px;}
+}
+@-webkit-keyframes longVoted {
+    from{border:2px solid red;} 
+    to{border:0px;}
+}
+
+@keyframes shortVoted {
+    from{border:2px solid green;} 
+    to{border:0px;}
+}
+@-webkit-keyframes shortVoted {
+    from{border:2px solid green;} 
+    to{border:0px;}
+}
+
+.long{
+    -webkit-animation: longVoted 1s;
+}
+.short{
+    -webkit-animation:  shortVoted 1s;
+}
+
+#container{width:100%;height:100%;overflow-y: scroll;position:fixed;}
+#candleStick{width:100%;height:250px;position:absolute;overflow-x:auto;margin: 0px 0px 0px 0px;left:0px;top:20px;}
+#candleStickYaxis{width:35px;height:250px;position:absolute;float:left;}
 body{-webkit-touch-callout:none;-webkit-user-select:none;width:100%;height:100%;-khtml-user-select:none;-moz-user-select:none;-ms-user-select: none;user-select: none;margin:0px;}
 #crosssvg{width:20px;height:20px;stroke: cyan;position:absolute;left:80}
 #crossSign{width:64px; height:64px;background-color:deepskyblue;}
-#realtimeBidAsk{width:100%;height:40px;top:250px;position:absolute;border:0;cellspacing:0;cellpadding:0}
-#Bid{width:50%;height:100%;background-color: red;text-align: center;font-size: large;font-weight: bold;color:white;vertical-align: middle;}
-#Ask{width:50%;height:100%;background-color: green;text-align: center;font-size:large;font-weight:bold;color:white;vertical-align: middle;}
+#realtimeBidAsk{width:100%;height:40px;top:250px;position:absolute;border:0;border-spacing: 1px;border-collapse: separate;}
+#Bid{width:50%;height:100%;background-color: deepskyblue;text-align: center;font-size: large;font-weight: bold;color:white;vertical-align: middle;}
+#Ask{width:50%;height:100%;background-color: deepskyblue;text-align: center;font-size: large;font-weight: bold;color:white;vertical-align: middle;}
 #realtimeBidAsk td{padding:0 0;}
+#cpInfo{width:100%;height:20px;top:0px;position:absolute;border:0;border-bottom:1px solid lightgrey}
+.cpInfoContainer{width:20%;height:100%;float:left;}
+.vlInfoContainer{width:10%;height:100%;float:left;}
+.InfoContainer{width:17.5%;height:100%;float:left;}
+.description{width:30%;height:100%;float:left;text-align:center;font-size:110%;font-family:sans-serif;vertical-align:middle;padding-top:3px;}
+.descriptionVL{width:50%;height:100%;float:left;text-align:center;font-size:110%;font-family:sans-serif;vertical-align:middle;padding-top:3px;}
+#cp{width:70%;height:100%;float:left;text-align:left;font-size:120%;font-family:sans-serif;vertical-align:middle;padding-top:3px;}
+#open{width:70%;height:100%;float:left;text-align:left;font-size:120%;font-family:sans-serif;vertical-align:middle;padding-top:3px;}
+#high{width:70%;height:100%;float:left;text-align:left;font-size:120%;font-family:sans-serif;vertical-align:middle;padding-top:3px;}
+#low{width:70%;height:100%;float:left;text-align:left;font-size:120%;font-family:sans-serif;vertical-align:middle;padding-top:3px;}
+#close{width:70%;height:100%;float:left;text-align:left;font-size:120%;font-family:sans-serif;vertical-align:middle;padding-top:3px;}
+#volume{width:50%;height:100%;float:left;text-align:left;font-size:120%;font-family:sans-serif;vertical-align:middle;padding-top:3px;}
+#rbaHeader{width:100%;height:20px;top:230px;position:absolute;border:0;}
+.rbaHeaderCell{width:50%;height:100%;float:left;text-align:center;font-size:120%;font-family:sans-serif;font-weight: bold;vertical-align:middle;padding-top:5px;}
+#placeHolder{width:100%;height:10px;top:290px;}
+#voting{width:100%;height:40px;top:300px;position:absolute;border:0;}
+.button{width:20%;height:100%;float:left;}
+.progressBar{width:60%;height:100%;float:left;}
+#longButton{position:relative;right:10px;width:32px;height:32px;background-image: url(/images/long.svg);background-color: transparent;border:0px;float: right;border:0px solid transparent;border-radius: 5px;}
+#shortButton{position:relative;left:10px;width:32px;height:32px;background-image:url(/images/short.svg);background-color: transparent;border:0px;border:0px solid transparent;border-radius: 5px;}
+#barFull{top:9px;width:100%;height:15px;position:relative;}
+#longPart{background-color: red;width:50%;height:100%;float:left;text-align: center;vertical-align: middle;font-size: 130%;}
+#shortPart{background-color: green;width:50%;height:100%;float:left;text-align: center;vertical-align: middle;font-size: 130%;}
+
+#chatTab{width:100%;height:30px;top:340px;position:absolute;}
+.nav-tabs{border:0px;}
+#longTab{width:33.3333%;height:100%;}
+#longTab > a{padding: 0px 5px;height:100%;text-align: center;font-size: large;border-radius: 0;border:2px solid lightgrey;border-left: 0px;border-right: 0px;border-top: 0px;margin:0;}
+#longTab.active > a{border:2px solid lightgrey;border-bottom: 0px;margin-left:2px;color:orangered}
+#neutralTab{width:33.3333%;height:100%;}
+#neutralTab > a{padding: 0px 5px;height:100%;text-align: center;font-size: large;border-radius: 0;border:2px solid lightgrey;border-left: 0px;border-right: 0px;border-top: 0px;margin:0;}
+#neutralTab.active > a{border:2px solid lightgrey;border-bottom: 0px;margin:0;color: royalblue;}
+#shortTab > a{padding: 0px 5px;height:100%;text-align: center;font-size:large;border-radius: 0;border:2px solid lightgrey;border-left: 0px;border-right: 0px;border-top: 0px;margin:0;}
+#shortTab.active > a{border:2px solid lightgrey;border-bottom: 0px;margin-right: 2px;color: forestgreen;}
+#shortTab{width:33.3333%;height:100%;}
+#longMsg{width:100%;height:300px;top:370px;position:absolute;overflow-y: scroll;border-bottom: 1px solid lightgrey;}
+#longMessage { list-style-type: none; margin: 0; padding: 0; }
+#longMessage li { padding: 10px 10px; border-bottom: 1px solid lightgrey;font:12px sans-serif;}
+#neutralMsg{width:100%;height:300px;top:370px;position:absolute;overflow-y: scroll;border-bottom: 1px solid lightgrey;}
+#neutralMessage { list-style-type: none; margin: 0; padding: 0; }
+#neutralMessage li { padding: 10px 10px; border-bottom: 1px solid lightgrey;font:12px sans-serif;}
+#shortMsg{width:100%;height:300px;top:370px;position:absolute;overflow-y: scroll;border-bottom: 1px solid lightgrey;}
+#shortMessage { list-style-type: none; margin: 0; padding: 0; }
+#shortMessage li { padding: 10px 10px; border-bottom: 1px solid lightgrey;font:12px sans-serif;}
+#input{ padding: 3px; top:670px;position:absolute; width: 100%; }
+#input input { border: 1px solid slategrey; padding: 2px; width: 95%; height:30px; font:14px sans-serif;}
+#anchor{width:100%;height:0px;top:698px;position:fixed;}
